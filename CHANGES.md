@@ -15,7 +15,7 @@
 - `npm run i18n:check`: **passed**.
 - `cargo check --manifest-path app/src-tauri/Cargo.toml --locked`: **passed** in a prior local run.
 - `cargo clippy --manifest-path app/src-tauri/Cargo.toml --locked --all-targets -- -D warnings`: **passed** in a prior local run.
-- `npm test`: **not run successfully on this Android host**; Playwright exits with `Unsupported platform: android`. The workflow installs Chromium on Linux and must provide the real test result.
+- First GitHub Actions run: frontend build, bundle budgets, localization, and policy checks passed; Playwright E2E ran 86 tests, with 85 passing and one timeout because `tests/e2e/accessibility.spec.ts` still referenced the removed `Lifetime license purchased` tab. Removed that stale tab from the test. The corrected test run is pending.
 - Android APK build, emulator install/launch, and login-screen/logcat verification: **not yet verified**.
 - Cross-platform desktop package builds and GitHub Actions run: **not yet verified**.
 - No Actions run URL or green-run claim exists yet.
