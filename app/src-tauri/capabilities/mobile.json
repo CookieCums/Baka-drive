@@ -1,6 +1,6 @@
 {
   "identifier": "mobile-only",
-  "description": "Permissions required only on Android",
+  "description": "Permissions required only on Android for Baka Drive",
   "platforms": [
     "android"
   ],

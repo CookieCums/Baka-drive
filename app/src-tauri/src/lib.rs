@@ -110,7 +110,6 @@ pub mod server;
 mod server_lifecycle;
 pub mod share_routes;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod sponsor_link_bridge;
 pub mod sync_engine;
 pub mod transcode;
 pub mod upload_service;
@@ -128,7 +127,7 @@ pub const STREAM_PORT: u16 = 14201;
 static ACTIVE_STREAM_PORT: std::sync::atomic::AtomicU16 =
     std::sync::atomic::AtomicU16::new(STREAM_PORT);
 
-/// The loopback port serving streams, share pages and the sponsor frame.
+/// The loopback port serving local media streams and share pages.
 pub fn stream_port() -> u16 {
     ACTIVE_STREAM_PORT.load(std::sync::atomic::Ordering::Relaxed)
 }
@@ -147,8 +146,6 @@ fn generate_stream_token() -> String {
 /// Holds the Actix-web server stop handle so we can shut it down
 /// from the RunEvent::Exit handler for graceful Ctrl+C termination.
 pub struct ActixServerHandle(pub Arc<std::sync::Mutex<Option<actix_web::dev::ServerHandle>>>);
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-struct AdServerHandle(Arc<server_lifecycle::LocalServerLifecycle>);
 
 /// Serialized lifecycle for the restartable desktop REST API server.
 pub struct ApiServerLifecycle(pub Arc<server_lifecycle::LocalServerLifecycle>);
@@ -654,8 +651,8 @@ fn cmd_get_android_playback_history() -> Result<Vec<AndroidPlaybackHistoryEntry>
             .get_string(&value)
             .map_err(|error| format!("Failed to decode playback history: {error}"))?
             .into();
-        return serde_json::from_str(&json)
-            .map_err(|error| format!("Failed to parse playback history: {error}"));
+        serde_json::from_str(&json)
+            .map_err(|error| format!("Failed to parse playback history: {error}"))
     }
     #[cfg(not(target_os = "android"))]
     Ok(Vec::new())
@@ -841,16 +838,16 @@ fn cmd_get_system_diagnostics(app: tauri::AppHandle) -> Result<String, String> {
             .map_err(|_| "Android diagnostics returned malformed data".to_string())?;
         let pretty = serde_json::to_string_pretty(&parsed)
             .map_err(|error| format!("Unable to format Android diagnostics: {error}"))?;
-        return Ok(format!(
-            "=== Telegram Drive Diagnostics ===\n{pretty}\n=================================="
-        ));
+        Ok(format!(
+            "=== Baka Drive Diagnostics ===\n{pretty}\n=================================="
+        ))
     }
 
     #[cfg(not(target_os = "android"))]
     {
         let mut lines: Vec<String> = Vec::new();
 
-        lines.push("=== Telegram Drive Diagnostics ===".into());
+        lines.push("=== Baka Drive Diagnostics ===".into());
         lines.push(format!("Package: {}", env!("CARGO_PKG_NAME")));
         lines.push(format!("Version: {}", env!("CARGO_PKG_VERSION")));
 
@@ -977,15 +974,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init());
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    let builder = builder.plugin(sponsor_link_bridge::init());
-
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder.plugin(tauri_plugin_notification::init());
-
-    // The updater plugin is not supported on Android and can cause crashes
-    // (APKs are managed by the Play Store; the plugin attempts restricted FS ops).
-    #[cfg(not(target_os = "android"))]
-    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
@@ -1055,7 +1044,7 @@ pub fn run() {
                                 // 1. Initialize ndk-context with the JVM and Activity pointers
                                 if let Ok(vm) = env.get_java_vm() {
                                     unsafe {
-                                        let _ = ndk_context::initialize_android_context(
+                                        ndk_context::initialize_android_context(
                                             vm.get_java_vm_pointer().cast(),
                                             context.as_raw().cast(),
                                         );
@@ -1070,7 +1059,7 @@ pub fn run() {
                                 //    Using the same JNI env avoids the race condition where
                                 //    ndk_context::android_context() was called before init completed.
                                 if let Ok(class_loader_val) = env.call_method(
-                                    &context,
+                                    context,
                                     "getClassLoader",
                                     "()Ljava/lang/ClassLoader;",
                                     &[],
@@ -1080,7 +1069,7 @@ pub fn run() {
                                             let _ = crate::jni_cache::set_class_loader(class_loader_global);
                                         }
 
-                                        let class_name_jstr = match env.new_string("com.cameronamer.telegramdrive.MainActivity") {
+                                        let class_name_jstr = match env.new_string("com.bakadrive.app.MainActivity") {
                                             Ok(s) => Some(s),
                                             Err(e) => {
                                                 log::error!("JNI: Failed to create MainActivity class name string: {}", e);
@@ -1143,39 +1132,6 @@ pub fn run() {
                 .map(|address| address.port())
                 .unwrap_or(0);
             app.manage(StreamConfig { token: stream_token.clone(), port: bound_stream_port });
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            {
-                // The established media origin remains the default. This opt-in
-                // is for the provider/WebView acceptance matrix before rollout.
-                let ad_listener = if std::env::var("TELEGRAM_DRIVE_AD_ORIGIN").ok().as_deref() == Some("separate") {
-                    match server::bind_ad_listener() {
-                        Ok(listener) => Some(listener),
-                        Err(error) => { log::error!("Separate sponsor listener unavailable: {error}"); None }
-                    }
-                } else {None};
-                let ad_lifecycle = server_lifecycle::LocalServerLifecycle::new();
-                let generation = ad_lifecycle.request_restart();
-                app.manage(AdServerHandle(ad_lifecycle.clone()));
-                if let Some(listener) = ad_listener {
-                    let ad_app = app.handle().clone();
-                    tauri::async_runtime::spawn(async move {
-                        if !ad_lifecycle.is_current(generation) {
-                            return;
-                        }
-                        match server::start_ad_server(listener) {
-                            Ok(server) => {
-                                let stored = ad_app.state::<AdServerHandle>().0.install_handle(generation, server.handle());
-                                if !stored {server.handle().stop(false).await; return;}
-                                if let Err(error) = server.await {log::error!("Separate sponsor server stopped: {error}");}
-                                ad_lifecycle.server_finished(generation,None);
-                            }
-                            Err(error) => log::error!("Separate sponsor server failed to start: {error}"),
-                        }
-                    });
-                }
-            }
-
-
             // Initialize the passphrase-protected persistent production vault.
             // Test-only MemoryVault must never be constructed by the app.
             let crypto_data_dir = app.path().app_data_dir().map_err(|e| {
@@ -1271,14 +1227,17 @@ pub fn run() {
                 }
                 transfer_engine.start();
             }
-            let sync_engine = sync_engine::SyncEngine::new(db_pool.clone(), app.handle().clone());
-            app.manage(sync_engine);
-            let app_for_sync = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(error) = app_for_sync.state::<sync_engine::SyncEngine>().start().await {
-                    log::error!("Failed to initialize folder sync engine: {error}");
-                }
-            });
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let sync_engine = sync_engine::SyncEngine::new(db_pool.clone(), app.handle().clone());
+                app.manage(sync_engine);
+                let app_for_sync = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = app_for_sync.state::<sync_engine::SyncEngine>().start().await {
+                        log::error!("Failed to initialize folder sync engine: {error}");
+                    }
+                });
+            }
 
             // Actix Web's Server future runs on Tokio without requiring a separate
             // actix_rt::System. Sharing Tauri's runtime avoids nested-runtime
@@ -1402,8 +1361,11 @@ pub fn run() {
             workspace::packs::cmd_offline_pack_create,
             workspace::packs::cmd_offline_pack_action,
             workspace::packs::cmd_offline_pack_path,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_preview_sync_pair,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_update_sync_pair,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_set_sync_pair_active,
             commands::cmd_auth_request_code,
             commands::cmd_auth_resend_code,
@@ -1451,30 +1413,29 @@ pub fn run() {
             commands::cmd_get_file_activity,
             commands::cmd_get_startup_health,
             commands::cmd_get_storage_insight,
-            commands::cmd_submit_crash_report,
             commands::cmd_get_settings_sync_status,
             commands::cmd_upload_settings_sync,
             commands::cmd_download_settings_sync,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_get_sync_settings,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_toggle_sync,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_set_sync_scanner,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_add_sync_pair,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_get_sync_pairs,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_remove_sync_pair,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_get_sync_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_get_sync_conflicts,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_get_sync_log,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             commands::cmd_resolve_conflict,
-            #[cfg(not(target_os = "ios"))]
-            commands::cmd_get_supporter_status,
-            #[cfg(not(target_os = "ios"))]
-            commands::cmd_begin_supporter_checkout,
-            #[cfg(not(target_os = "ios"))]
-            commands::cmd_poll_supporter_checkout,
-            #[cfg(not(target_os = "ios"))]
-            commands::cmd_activate_supporter,
-            #[cfg(not(target_os = "ios"))]
-            commands::cmd_refresh_supporter,
             commands::cmd_check_connection,
             commands::cmd_is_network_available,
             commands::cmd_get_android_network_status,
@@ -1661,6 +1622,7 @@ pub fn run() {
                 let app_handle = app_handle.clone();
                 let exit_code = code.unwrap_or(0);
                 tauri::async_runtime::spawn(async move {
+                    #[cfg(not(any(target_os = "android", target_os = "ios")))]
                     if let Some(sync_engine) = app_handle.try_state::<sync_engine::SyncEngine>() {
                         if let Err(error) = sync_engine.shutdown_and_wait().await {
                             log::error!("Folder sync did not shut down cleanly: {error}");
@@ -1680,13 +1642,6 @@ pub fn run() {
                             .and_then(|mut value| value.take());
                         if let Some(handle) = handle {
                             log::info!("Stopping Actix streaming server...");
-                            handle.stop(true).await;
-                        }
-                    }
-                    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-                    if let Some(ad_server) = app_handle.try_state::<AdServerHandle>() {
-                        let handle = ad_server.0.begin_shutdown();
-                        if let Some(handle) = handle {
                             handle.stop(true).await;
                         }
                     }
@@ -1713,6 +1668,7 @@ pub fn run() {
             if let Some(crypto_state) = app_handle.try_state::<crypto::state::CryptoState>() {
                 crypto_state.lock();
             }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             if let Some(sync_engine) = app_handle.try_state::<sync_engine::SyncEngine>() {
                 sync_engine.shutdown();
             }
@@ -1734,16 +1690,6 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     handle.stop(false).await;
                 });
-            }
-
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            if let Some(ad_server) = app_handle.try_state::<AdServerHandle>() {
-                let handle = ad_server.0.begin_shutdown();
-                if let Some(handle) = handle {
-                    tauri::async_runtime::spawn(async move {
-                        handle.stop(false).await;
-                    });
-                }
             }
 
             // 3. Immediate fallbacks for local servers when ExitRequested was bypassed.

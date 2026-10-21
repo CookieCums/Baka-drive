@@ -1,3 +1,8 @@
+#![cfg_attr(
+    any(target_os = "android", target_os = "ios"),
+    allow(dead_code, unused_mut)
+)]
+
 //! Exact files produced by the application, bound to their account and identity.
 use crate::workspace::{store::Store, AccountGuard};
 use serde::{Deserialize, Serialize};

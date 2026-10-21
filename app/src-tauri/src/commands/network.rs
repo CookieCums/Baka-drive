@@ -49,8 +49,8 @@ pub fn cmd_get_android_transfer_environment() -> Result<AndroidTransferEnvironme
             .get_string(&value)
             .map_err(|error| format!("Unable to decode Android transfer conditions: {error}"))?
             .into();
-        return serde_json::from_str(&json)
-            .map_err(|error| format!("Unable to parse Android transfer conditions: {error}"));
+        serde_json::from_str(&json)
+            .map_err(|error| format!("Unable to parse Android transfer conditions: {error}"))
     }
     #[cfg(not(target_os = "android"))]
     Ok(AndroidTransferEnvironment {

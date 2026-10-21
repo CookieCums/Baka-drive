@@ -1,7 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import {useTranslation} from 'react-i18next';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { reportCrash } from '../../services/crashTelemetry';
 
 interface Props {
     children: ReactNode;
@@ -22,10 +21,9 @@ export class ErrorBoundary extends Component<Props, State> {
         return { hasError: true, error };
     }
 
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error('ErrorBoundary caught an error:', error, errorInfo);
+    componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
+        console.error('Baka Drive caught an interface error; details are not written to logs.');
         sessionStorage.setItem('telegram-drive-recovered-session', 'true');
-        reportCrash(error, 'react');
     }
 
     handleReload = () => {

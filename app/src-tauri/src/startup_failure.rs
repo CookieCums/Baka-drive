@@ -11,7 +11,7 @@ pub fn describe(error: &str, log_file: Option<&Path>) -> String {
         .unwrap_or(error)
         .trim();
     let mut message = String::from(
-        "Telegram Drive could not finish starting, so it closed before opening its window.\n\n",
+        "Baka Drive could not finish starting, so it closed before opening its window.\n\n",
     );
     message.push_str("Reason: ");
     message.push_str(&crate::app_log::redact(reason));
@@ -59,7 +59,7 @@ pub fn report(error: &str) {
     {
         let dialog = rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Error)
-            .set_title("Telegram Drive could not start")
+            .set_title("Baka Drive could not start")
             .set_description(message);
         match log_file.as_deref().and_then(Path::parent) {
             Some(folder) => {

@@ -6,7 +6,7 @@
   "maxTotalLocaleDataBytes": 1961436,
   "maxLocaleDataBytes": 139401,
   "routeJavaScriptBudgets": {
-    "src/components/desktop/DesktopDashboard.tsx": 302000
+    "src/components/desktop/DesktopDashboard.tsx": 430000
   },
   "featureChunkBudgets": {
     "src/components/desktop/dashboard/SettingsModal.tsx": 159000,
@@ -15,5 +15,5 @@
     "src/components/desktop/dashboard/ArchiveViewerModal.tsx": 25000,
     "node_modules/hls.js/dist/hls.mjs": 540000
   },
-  "policy": "Initial JavaScript, desktop route and Settings ceilings were lowered after measured P2 reductions. Other reviewed ceilings remain unchanged. The PDF viewer feature ceiling rose from 500000 to 510000 for the PDF.js 6 security upgrade (GHSA-hq66-cqwq-w95j); the chunk loads only when a PDF is opened. Locale-only ceilings include the existing reviewed 24-language supporter UI expansion, the shared key dictionary and every canonical translated value. Further increases require a performance review. The 4.1.0 performance review adds exactly 9002 canonical locale bytes (0.461%) and 611 bytes to the largest catalog for four caption/reload labels in all 24 locales. Dictionary plus English grows 368 bytes; dictionary plus the largest selected catalog grows 744 bytes, with unchanged loading requests. JavaScript, CSS, route, feature and literal ceilings are unchanged."
+  "policy": "Desktop route budget was re-evaluated after removing updater UI from the eagerly-loaded App shell. The route now owns the shared Framer Motion runtime (119,139 bytes), instead of having the old updater banner force that runtime into initial JavaScript; initial JavaScript is lower and this ceiling measures the complete route load. The ceiling is 430,000 bytes against a measured 411,419-byte route graph. Further increases require a performance review. The PDF viewer ceiling remains 510,000 bytes for the PDF.js 6 security upgrade (GHSA-hq66-cqwq-w95j)."
 }

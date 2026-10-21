@@ -9,7 +9,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
 
-const TRAY_ID: &str = "telegram-drive-main";
+const TRAY_ID: &str = "baka-drive-main";
 const MENU_OPEN: &str = "desktop_open";
 const MENU_TRANSFERS: &str = "desktop_open_transfers";
 const MENU_PAUSE: &str = "desktop_pause_all";

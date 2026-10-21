@@ -171,7 +171,7 @@ export function MobileMediaPlayer({ file, activeFolderId, onClose, preferences }
           <div className="w-full max-w-sm text-center text-white" role="status">
             <Loader2 className="mx-auto h-9 w-9 animate-spin text-telegram-primary" aria-hidden="true" />
             <p className="mt-4 text-sm font-medium">Opening the Android player…</p>
-            <p className="mt-1 text-xs text-white/55">Streaming securely without leaving Telegram Drive.</p>
+            <p className="mt-1 text-xs text-white/55">Streaming securely within Baka Drive.</p>
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
               <div className="h-full rounded-full bg-telegram-primary transition-[width]" style={{ width: `${Math.max(progress, 2)}%` }} />
             </div>

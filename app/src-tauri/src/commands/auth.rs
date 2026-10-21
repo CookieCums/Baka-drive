@@ -612,7 +612,7 @@ fn map_auth_error(error: InvocationError) -> String {
         ("PHONE_PASSWORD_FLOOD", "Too many login attempts were made. Please wait before trying again."),
         ("SMS_CODE_CREATE_FAILED", "Telegram could not create a login code. Use QR login or try again later."),
         ("SEND_CODE_UNAVAILABLE", "Telegram has no additional code-delivery method available. Use QR login instead."),
-        ("UPDATE_APP_TO_LOGIN", "Telegram requires a newer authentication protocol. Please update Telegram Drive."),
+        ("UPDATE_APP_TO_LOGIN", "Telegram requires a newer authentication protocol. Please update Baka Drive."),
     ];
 
     for (needle, message) in mappings {

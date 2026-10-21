@@ -219,7 +219,7 @@ pub fn folder_display_name(title: &str) -> String {
         .to_string()
 }
 
-/// Walk the account's dialogs for Telegram Drive folders. A failed walk is an
+/// Walk the account's dialogs for Baka Drive folders. A failed walk is an
 /// error rather than a shorter list.
 pub async fn discover_folders(
     account: &AccountGuard,
@@ -308,7 +308,7 @@ pub async fn discover_folders(
     Ok(folders)
 }
 
-/// Saved Messages followed by every Telegram Drive folder.
+/// Saved Messages followed by every Baka Drive folder.
 pub async fn folders(
     account: &AccountGuard,
     state: &TelegramState,

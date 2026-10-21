@@ -12,8 +12,8 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-pub const LOG_FILE_NAME: &str = "telegram-drive.log";
-pub const PREVIOUS_LOG_FILE_NAME: &str = "telegram-drive.previous.log";
+pub const LOG_FILE_NAME: &str = "baka-drive.log";
+pub const PREVIOUS_LOG_FILE_NAME: &str = "baka-drive.previous.log";
 /// One rotation is kept, so logs never use more than twice this on disk.
 const MAX_LOG_BYTES: u64 = 1024 * 1024;
 const MAX_LINE_BYTES: usize = 4 * 1024;

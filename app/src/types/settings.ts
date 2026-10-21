@@ -17,18 +17,13 @@ export interface Settings {
   viewMode: 'grid' | 'list';
   fileSortField: 'name' | 'size' | 'date';
   fileSortDirection: 'asc' | 'desc';
-  autoUpdate: boolean;
   maxConcurrentUploads: number;
   maxConcurrentDownloads: number;
   zipFolders: boolean;
   videoUploadMode: VideoUploadMode;
   videoFilenameCaption: boolean;
   language: LanguagePreference;
-  crashReportingEnabled: boolean;
-  crashReportingConsentSeen: boolean;
   telegramSettingsSyncEnabled: boolean;
-  supporterMode: boolean;
-  supporterPromptLastShownAt: number;
   driveTourSeen: boolean;
   vaultRecoveryDrillCompleted: boolean;
   /** Vault the completed drill was run against; empty for drills recorded before 4.0. */

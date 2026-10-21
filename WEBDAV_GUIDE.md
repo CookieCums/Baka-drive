@@ -1,6 +1,6 @@
 # WebDAV access
 
-Telegram Drive can expose the signed-in account as a local WebDAV drive on the desktop app. The server is disabled by default, binds only to `127.0.0.1`, and uses read-only access unless file changes are explicitly enabled.
+Baka Drive can expose the signed-in account as a local WebDAV drive on the desktop app. The server is disabled by default, binds only to `127.0.0.1`, and uses read-only access unless file changes are explicitly enabled.
 
 WebDAV hosting is supported on macOS, Windows, and Linux. Android and iOS do not start a local WebDAV server.
 
@@ -24,7 +24,7 @@ The app stores only a SHA-256 hash of the token. If the link is lost, regenerate
 
 ## Connect a client
 
-Keep Telegram Drive open and signed in while using WebDAV.
+Keep Baka Drive open and signed in while using WebDAV.
 
 ### macOS Finder
 
@@ -51,7 +51,7 @@ Desktop file managers accept the same endpoint with their WebDAV-specific scheme
 ## Files and folders
 
 - **Saved Messages** is presented as a top-level folder.
-- Telegram Drive channels are presented as the other top-level folders.
+- Baka Drive channels are presented as the other top-level folders.
 - Duplicate or platform-incompatible remote names receive deterministic, Windows-safe display aliases.
 - Reads support HTTP byte ranges, so compatible clients can seek within standard media and large files.
 - With file changes enabled, clients can upload, rename, copy, move, and delete standard files and can create, rename, or delete folders.
@@ -70,7 +70,7 @@ Telegram remains the backing store, so Telegram service limits, account permissi
 
 ## Troubleshooting
 
-- **The client cannot connect:** confirm Telegram Drive is open, signed in, the WebDAV toggle is on, and the status says it is running.
+- **The client cannot connect:** confirm Baka Drive is open, signed in, the WebDAV toggle is on, and the status says it is running.
 - **The status shows a server error:** select another unused port and press Enter or leave the port field to apply it.
 - **A saved link stopped working:** the link was regenerated. Use the newly generated URL.
 - **A write fails:** confirm **Allow file changes** is enabled and the target is not an encrypted file.

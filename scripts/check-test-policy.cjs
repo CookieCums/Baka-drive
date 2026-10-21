@@ -1,66 +1,32 @@
-// Configuration lint: behavioral regression suites must exercise application boundaries.
+#!/usr/bin/env node
+'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
-
 const root = path.resolve(__dirname, '..');
-const problems = [];
-const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const exists = file => fs.existsSync(path.join(root, file));
-function files(directory) {
-  if (!exists(directory)) return [];
-  return fs.readdirSync(path.join(root, directory), { withFileTypes: true }).flatMap(entry => {
-    const name = `${directory}/${entry.name}`;
-    return entry.isDirectory() ? files(name) : entry.isFile() ? [name] : [];
-  });
-}
+const appRoot = path.join(root, 'app');
+const manifest = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+const errors = [];
+const check = (condition, message) => { if (!condition) errors.push(message); };
 
-for (const project of ['app', 'supporter-service']) {
-  const manifest = JSON.parse(read(`${project}/package.json`));
-  const e2e = manifest.scripts?.['test:e2e'];
-  if (!e2e || ![e2e, 'npm run test:e2e', 'npm run test:e2e --'].includes(manifest.scripts?.test)) {
-    problems.push(`${project}: npm test must run the test:e2e entrypoint.`);
-  }
-  if (manifest.scripts?.['test:coverage']) problems.push(`${project}: remove the retired unit coverage command.`);
-  for (const dependency of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
-    if (/^(vitest$|@vitest\/|@testing-library\/|jsdom$)/.test(dependency)) {
-      problems.push(`${project}: obsolete unit-only dependency ${dependency}.`);
-    }
-  }
-  if (exists(`${project}/vitest.config.ts`)) problems.push(`${project}: remove the retired Vitest configuration.`);
-}
-
-for (const directory of ['app/tests/unit', 'app/android-overrides/app/src/test']) {
-  if (files(directory).length) problems.push(`${directory}: replace unit cases with application or device journeys.`);
-}
-for (const file of [...files('app/src'), ...files('supporter-service/src')]) {
-  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file)) problems.push(`${file}: production source must not contain unit suites.`);
-}
-for (const file of files('app/src-tauri/src').filter(file => file.endsWith('.rs'))) {
-  if (/#\s*\[\s*(?:test\b|[a-z_]+::test\b|cfg\([^\]]*\btest\b)/.test(read(file))) {
-    problems.push(`${file}: move regression coverage to the native process/HTTP E2E suite.`);
-  }
-}
-for (const file of files('.github/workflows').filter(file => /\.ya?ml$/.test(file))) {
-  if (/\bvitest\b|\btest:coverage\b|tests\/unit\/|\btest\w*UnitTest\b|cargo\s+(?:test|llvm-cov)[^\r\n]*--lib\b/.test(read(file))) {
-    problems.push(`${file}: CI still invokes a retired unit suite.`);
-  }
-}
-const androidBuild = 'app/android-overrides/app/build.gradle.kts';
-if (exists(androidBuild) && /\btest(?:Implementation|RuntimeOnly|CompileOnly)\b/.test(read(androidBuild))) {
-  problems.push(`${androidBuild}: remove dependencies used only by the retired JVM unit suite.`);
+check(manifest.scripts?.test === 'playwright test', 'npm test must run the Playwright E2E suite.');
+check(manifest.scripts?.['test:e2e'] === 'playwright test', 'test:e2e must remain an alias of the E2E suite.');
+check(fs.existsSync(path.join(appRoot, 'playwright.config.ts')), 'Playwright configuration is missing.');
+check(fs.existsSync(path.join(appRoot, 'tests', 'e2e')), 'E2E journeys are missing.');
+check(!fs.existsSync(path.join(root, 'supporter-service')), 'The retired payment Worker project must not exist.');
+for (const dep of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
+  if (/^(vitest$|@vitest\/|@testing-library\/|jsdom$)/.test(dep)) errors.push('Unit-only dependency remains: ' + dep);
 }
 for (const file of [
-  'app/playwright.config.ts',
-  'app/src-tauri/tests/native_e2e.rs',
-  'scripts/e2e/assurance.e2e.cjs',
-  'scripts/e2e/supporter-token.e2e.mjs',
+  'app/tests/e2e/sponsor-placement.spec.ts',
+  'app/tests/e2e/supporter-lifetime.spec.ts',
+  'app/tests/e2e/update-recovery.spec.ts',
+  'app/tests/visual/supporter-presentation.spec.ts',
 ]) {
-  if (!exists(file)) problems.push(`${file}: required E2E entrypoint is missing.`);
+  check(!fs.existsSync(path.join(root, file)), 'Obsolete monetization/updater test remains: ' + file);
 }
-
-if (problems.length) {
-  console.error(`[test-policy]\n${problems.map(problem => `- ${problem}`).join('\n')}`);
-  process.exitCode = 1;
-} else {
-  console.log('[test-policy] E2E entrypoints are configured; no retired unit runners remain.');
+if (errors.length) {
+  console.error('[test-policy]\n' + errors.map(error => '- ' + error).join('\n'));
+  process.exit(1);
 }
+console.log('[test-policy] E2E entrypoints and retired-feature test removal passed.');

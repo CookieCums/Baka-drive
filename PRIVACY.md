@@ -1,43 +1,30 @@
-# Telegram Drive Privacy Policy
+# Baka Drive Privacy Policy
 
-Last updated: August 29, 2026
+Baka Drive is a local-first client for Telegram. It does not operate a cloud account service, file-storage relay, advertising service, supporter/payment service, crash-reporting endpoint, or automatic updater in this fork.
 
-Telegram Drive is a local-first desktop and Android client. It does not operate a file-storage or Telegram account service and does not sell personal information. The optional supporter feature in supported desktop and Android builds uses a narrowly scoped verification service described below.
+## Telegram connections
 
-## Data stored on your device
+You provide your own Telegram API ID and API hash. Baka Drive uses these credentials to authenticate to Telegram and perform the actions you request. Telegram receives the account, request, file, and transport metadata needed to provide the service. Telegram's terms, limits, and privacy policy apply to data stored there.
 
-Application settings, transfer queues, cached thumbnails and previews, local activity flags, and encrypted vault material are stored locally. Cache controls in Settings can remove cached media without deleting files stored in Telegram.
+The API hash and Telegram session are credentials. The application stores them locally using platform credential storage/session storage and does not intentionally print them to logs. Do not share them in screenshots, bug reports, or chat messages.
 
-## Data sent to Telegram
+## Local data
 
-Authentication and file operations connect directly to Telegram using credentials supplied by the user. Folders are represented by private Telegram channels. Telegram receives the messages and file bytes necessary to provide those operations, subject to Telegram's own terms and privacy policy.
+Configuration, session state, transfer queues, search/sync metadata, previews, and caches are stored locally. Optional encryption protects selected file content according to the chosen workflow; standard uploads are not automatically encrypted by the application. Lost encryption passphrases or recovery material may make protected data unrecoverable.
 
-The Telegram API hash is stored in the desktop operating-system credential manager or Android Keystore, separately from ordinary JSON settings. A legacy plaintext API hash is retained only until secure migration succeeds. The non-secret API ID and Telegram session database remain in the application's local data directory.
+## Connections you initiate
 
-## Crash reporting
+- File uploads/downloads and account actions connect directly to Telegram.
+- Remote URL upload contacts the source URL you explicitly enter; that source server can observe the request and the network address making it.
+- Optional REST, WebDAV, media-streaming, and share-link services are hosted by the running application. They should bind only to loopback and be enabled only when needed. Their generated API keys, capability URLs, and passwords are credentials.
+- Opening links in a browser or using platform integrations makes a request to the destination you choose.
 
-Crash reporting is disabled by default and requires explicit consent. A report contains only the application version, operating-system platform, error type, timestamp, and sanitized function names. It excludes error messages, file names, paths, file contents, Telegram messages or identifiers, credentials, phone numbers, and user-entered values. Reporting can be disabled at any time in Settings; disabling it also clears queued reports.
+Baka Drive does not send advertising impressions, purchase or donation events, usage analytics, or crash reports from this fork. No external updater manifest is configured.
 
-## Sponsored content
+## Retention and controls
 
-Free builds may display clearly labeled sponsor placements. On desktop, the isolated sponsor area first requests the publisher-issued banner loader directly from the advertising provider. As with most browser requests, the provider can receive network and browser context such as the public IP address, user agent, accepted languages, browser client hints, the local sponsor-page referrer origin, and provider cookies when the operating system's WebView privacy settings allow them. If the direct loader is blocked by DNS or the network, the application's loopback fallback requests only the fixed provider loader and forwards the WebView user agent plus allowlisted language/client-hint headers and the local sponsor-page referrer; it never forwards Telegram data or local application cookies. The last validated loader is retained only for outage recovery, and additional creative resources remain inside the isolated sponsor area.
+You can sign out, clear local caches, disable optional local servers, revoke share links, lock the encryption vault, and remove the app's local data through the operating system. Removing local state does not remove files already stored in Telegram; remove those through Telegram/Baka Drive as appropriate.
 
-The one-time post-authentication sponsor choice and the Android sponsor placement open an Adsterra Smartlink in the system browser only after the user explicitly chooses it. A non-identifying placement label distinguishes the gateway, Android banner, and desktop failure fallback in publisher statistics. Telegram Drive does not send file activity, file metadata, Telegram credentials, device identifiers, or crash reports to advertising providers. When a sponsor link opens in the system browser, the provider's privacy policy and the browser's own privacy settings apply.
+## Limitations
 
-## Local sharing servers
-
-WebDAV, REST, and password-protected local links are disabled until enabled by the user. They listen on the addresses shown in Settings and use capability tokens, API keys, or passwords. Disabling a server or regenerating its credential revokes that access. Guest or anonymous WebDAV connections receive no token-scoped file access.
-
-## Supporter mode
-
-Ad-free access on up to three supported Windows, macOS, Linux, or Android devices in total is activated only after the supporter service verifies one PayPal payment. Telegram Drive does not request or store the purchaser's PayPal email address. The service stores a PayPal order ID and capture ID, payment amount and currency, entitlement status, the accepted supporter-terms version, and cryptographic hashes/public keys used to enforce the shared device limit and refresh access. It does not receive Telegram credentials, phone numbers, file names, file contents, folder information, or application activity.
-
-The device private key, recovery code, and short-lived checkout secret are protected by the platform's secure credential storage, including the desktop operating system credential manager or Android Keystore. A signed entitlement token and non-secret checkout metadata are stored in the application's local data directory. Normal application updates reuse these stable credentials and do not require reactivation.
-
-PayPal processes the payment under PayPal's own terms and privacy policy. Cloudflare processes network requests needed to operate the verification service under Cloudflare's privacy and security terms. Telegram Drive does not add IP addresses or raw PayPal webhook payloads to its D1 entitlement records. Verified PayPal refund and reversal notifications revoke the associated ad-free entitlement. See the [Supporter Terms](SUPPORTER_TERMS.md) for activation, recovery, device-limit, refund, reversal, dispute, availability, and liability conditions.
-
-## User control
-
-Users can clear caches, disable crash reporting, stop local servers, revoke share links, lock the encryption vault, and remove local settings. Files stored in Telegram remain governed by the user's Telegram account until the user deletes them. Payment records that must be retained for fraud prevention, entitlement enforcement, refunds, disputes, accounting, or legal obligations are kept only as long as reasonably necessary for those purposes.
-
-Security reports should not include credentials or private file data. Contact the maintainer through [cameronamer.com](https://www.cameronamer.com) to arrange private disclosure.
+This project has not received a complete independent security or cryptographic audit. This policy describes the intended behavior of the fork, not a guarantee that software or third-party services are free of defects. Report suspected privacy or security issues without including credentials, session files, private file names, contents, or recovery material.

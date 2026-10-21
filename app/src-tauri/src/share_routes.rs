@@ -391,7 +391,7 @@ fn render_password_form(
 <html lang="{}" dir="{}">
 <head>
     <meta charset="utf-8">
-    <title>{} - Telegram Drive</title>
+    <title>{} - Baka Drive</title>
     <style>
         body {{
             background-color: #182533;

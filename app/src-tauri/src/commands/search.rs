@@ -123,7 +123,7 @@ async fn offline_snapshot(
             .record::<Vec<i64>>("search-folders-v1", "verified")?
             .unwrap_or_default();
         if requested.flatten().is_some_and(|id| !folders.contains(&id)) {
-            return Err("NOT_DRIVE_FOLDER: Search is limited to Telegram Drive folders".into());
+            return Err("NOT_DRIVE_FOLDER: Search is limited to Baka Drive folders".into());
         }
         let (rows, _) = store.search_rows(&folders, folder_key(requested).as_deref())?;
         scope.validate()?;
@@ -197,7 +197,7 @@ impl Source for LiveSource {
                 .flatten()
                 .is_some_and(|id| !folder_ids.contains(&id))
             {
-                return Err("NOT_DRIVE_FOLDER: Search is limited to Telegram Drive folders".into());
+                return Err("NOT_DRIVE_FOLDER: Search is limited to Baka Drive folders".into());
             }
             let credential = crypto.current_credential().ok();
             let session = credential.as_ref().map(|(id, _)| *id);
