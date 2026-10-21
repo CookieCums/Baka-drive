@@ -46,7 +46,7 @@ export function CreateFolderDialog({ onClose, onCreate }: CreateFolderDialogProp
                     </label>
                     <div className="flex gap-3 rounded-lg border border-app-border-subtle bg-app-surface-sunken/30 p-3 text-xs leading-5 text-app-text-secondary">
                         <Info className="mt-0.5 h-4 w-4 shrink-0 text-app-accent" />
-                        <span>This creates a private Telegram channel that Telegram Drive presents as a folder. Its files remain in your Telegram account.</span>
+                        <span>This creates a private Telegram channel that Baka Drive presents as a folder. Its files remain in your Telegram account.</span>
                     </div>
                 </div>
                 <footer className="flex justify-end gap-3 border-t border-app-border-subtle px-5 py-4">

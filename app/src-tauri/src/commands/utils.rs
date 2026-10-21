@@ -187,6 +187,7 @@ pub fn map_error(e: impl std::fmt::Display) -> String {
 
 /// Parse the numeric part of Telegram's normalized FLOOD_WAIT marker.
 /// Callers retain their own case normalization, delay bounds, and retry policy.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) fn flood_wait_seconds(error: &str) -> Option<u64> {
     const MARKER: &str = "FLOOD_WAIT_";
     let start = error.find(MARKER)? + MARKER.len();

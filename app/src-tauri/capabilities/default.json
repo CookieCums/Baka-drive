@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Standard permissions for Telegram Drive",
+  "description": "Standard permissions for Baka Drive",
   "platforms": [
     "linux",
     "macOS",
@@ -14,7 +14,6 @@
     "os:default",
     "shell:allow-open",
     "store:default",
-    "updater:default",
     "process:allow-restart",
     "deep-link:default",
     "clipboard-manager:allow-write-text",

@@ -1,3 +1,8 @@
+#![cfg_attr(
+    any(target_os = "android", target_os = "ios"),
+    allow(dead_code, unused_mut)
+)]
+
 use crate::bandwidth::{BandwidthManager, BandwidthReservation};
 use crate::commands::download_destination::{
     publish_download_file, skip_existing_download, DownloadCollisionPolicy, DownloadOutcome,
@@ -1114,7 +1119,7 @@ pub async fn create_folder_inner(
             broadcast: true,
             megagroup: false,
             title: format!("{} [TD]", name),
-            about: "Telegram Drive Storage Folder\n[telegram-drive-folder]".to_string(),
+            about: "Baka Drive Storage Folder\n[telegram-drive-folder]".to_string(),
             geo_point: None,
             address: None,
             for_import: false,

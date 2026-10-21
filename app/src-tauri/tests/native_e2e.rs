@@ -483,7 +483,6 @@ async fn media_server_uses_the_preferred_port_and_falls_back_when_it_is_taken() 
         .unwrap();
 
     // Another process holds the preferred port: the server still starts and
-    // the sponsor page policy names the port that is really listening.
     let occupied = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let taken = occupied.local_addr().unwrap().port();
     let fixture = Fixture::new();
@@ -1176,7 +1175,7 @@ fn the_log_file_is_redacted_bounded_and_named_in_the_startup_failure_report() {
     let mut app = Backend::start(&fixture.0);
     assert_eq!(
         app.ok(json!({"command":"log_start"}))["path"],
-        "telegram-drive.log"
+        "baka-drive.log"
     );
     app.ok(json!({"command":"log_emit","level":"info","message":"opened folder Holiday Photos"}));
     app.ok(json!(
@@ -1189,7 +1188,7 @@ fn the_log_file_is_redacted_bounded_and_named_in_the_startup_failure_report() {
         }
     ));
     app.ok(json!({"command":"log_emit","level":"error","message":"two\nline failure api_hash=deadbeefcafe"}));
-    let log = String::from_utf8(fixture.read("logs/telegram-drive.log")).unwrap();
+    let log = String::from_utf8(fixture.read("logs/baka-drive.log")).unwrap();
     let lines: Vec<&str> = log.lines().collect();
     assert_eq!(
         lines.len(),
@@ -1219,7 +1218,7 @@ fn the_log_file_is_redacted_bounded_and_named_in_the_startup_failure_report() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(fixture.path("logs/telegram-drive.log"))
+        let mode = std::fs::metadata(fixture.path("logs/baka-drive.log"))
             .unwrap()
             .permissions()
             .mode();
@@ -1250,16 +1249,16 @@ fn the_log_file_is_redacted_bounded_and_named_in_the_startup_failure_report() {
         report.contains("older version was installed over a newer one"),
         "{report}"
     );
-    assert!(report.contains("telegram-drive.log"), "{report}");
+    assert!(report.contains("baka-drive.log"), "{report}");
 
     // The file is bounded: once it reaches its limit it rotates once.
     let filler = "bounded log line ".repeat(40);
     app.ok(json!({"command":"log_emit","level":"warn","message":filler,"repeat":2_000}));
     app.stop();
-    let current = std::fs::metadata(fixture.path("logs/telegram-drive.log"))
+    let current = std::fs::metadata(fixture.path("logs/baka-drive.log"))
         .unwrap()
         .len();
-    let previous = std::fs::metadata(fixture.path("logs/telegram-drive.previous.log"))
+    let previous = std::fs::metadata(fixture.path("logs/baka-drive.previous.log"))
         .unwrap()
         .len();
     assert!(current <= 1024 * 1024, "current log is {current} bytes");
@@ -5601,287 +5600,6 @@ async fn traffic_delivered_protected_media_renews_activity_and_idle_media_does_n
     app.stop();
 }
 
-#[tokio::test]
-async fn sponsor_origins_only_hide_requests_after_verified_active_or_grace_access() {
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-    use ed25519_dalek::{Signer, SigningKey};
-    use sha2::{Digest, Sha256};
-    for separate_mode in [false, true] {
-        let fixture = Fixture::new();
-        let mut app = Backend::start(&fixture.0);
-        let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let taken = occupied.local_addr().unwrap().port();
-        let media = app.ok(json!({"command":"start_stream_server","preferredPort":taken}));
-        assert_ne!(media["port"], json!(taken));
-        let separate = if separate_mode {
-            app.ok(json!({"command":"start_ad_server"}))
-        } else {
-            media.clone()
-        };
-        if separate_mode {
-            assert_ne!(media["port"], separate["port"]);
-            assert_eq!(separate["publishedStreamPort"], media["port"]);
-        }
-        let client = reqwest::Client::new();
-        let key = SigningKey::from_bytes(&[73; 32]);
-        let public = URL_SAFE_NO_PAD.encode(key.verifying_key().as_bytes());
-        let device = "synthetic-sponsor-device";
-        let now = chrono::Utc::now().timestamp();
-        let token =
-            |expires: i64, until: i64| {
-                let header = URL_SAFE_NO_PAD.encode(
-                    serde_json::to_vec(&json!({"alg":"EdDSA","typ":"TD-SUPPORTER","kid":"v1"}))
-                        .unwrap(),
-                );
-                let payload=URL_SAFE_NO_PAD.encode(serde_json::to_vec(&json!(
-                {
-                    "iss":"telegram-drive-supporter",
-                    "aud":"telegram-drive-desktop",
-                    "entitlement_id":"fixture-sponsor",
-                    "device_key_hash":URL_SAFE_NO_PAD.encode(Sha256::digest(device.as_bytes())),
-                    "terms_version":"2026-08-11",
-                    "issued_at":now-1000,
-                    "expires_at":expires,
-                    "offline_until":until
-                }
-            )).unwrap());
-                let signed = format!("{header}.{payload}");
-                format!(
-                    "{signed}.{}",
-                    URL_SAFE_NO_PAD.encode(key.sign(signed.as_bytes()).to_bytes())
-                )
-            };
-        for origin in [&separate] {
-            let response = client
-                .get(format!("{}/ad-banner", origin["url"].as_str().unwrap()))
-                .send()
-                .await
-                .unwrap();
-            assert_eq!(response.status(), 200);
-            let csp = response.headers()["content-security-policy"]
-                .to_str()
-                .unwrap();
-            assert!(csp.contains(&format!("http://localhost:{}/ad-script", origin["port"])));
-            assert!(response
-                .text()
-                .await
-                .unwrap()
-                .contains("highperformanceformat.com"));
-        }
-        let invalid = format!(
-            "{}.invalid",
-            token(now + 100, now + 200).rsplit_once('.').unwrap().0
-        );
-        app.failure(json!({"command":"sponsor_load_verified","token":invalid,"devicePublicKey":device,"servicePublicKey":public,"now":now}));
-        assert_eq!(
-            client
-                .get(format!("{}/ad-banner", separate["url"].as_str().unwrap()))
-                .send()
-                .await
-                .unwrap()
-                .status(),
-            200
-        );
-        for expires in [now + 100, now - 10] {
-            app.ok(json!({"command":"sponsor_load_verified","token":token(expires,now+200),"devicePublicKey":device,"servicePublicKey":public,"now":now}));
-            for origin in [&separate] {
-                for path in ["ad-banner", "ad-script"] {
-                    let response = client
-                        .get(format!("{}/{path}", origin["url"].as_str().unwrap()))
-                        .send()
-                        .await
-                        .unwrap();
-                    assert_eq!(
-                        response.status(),
-                        204,
-                        "{path} must be suppressed before provider IO"
-                    );
-                    assert_eq!(response.headers()["cache-control"], "no-store");
-                    assert!(response.bytes().await.unwrap().is_empty());
-                }
-            }
-        }
-        app.ok(json!({"command":"sponsor_load_verified","token":token(now-20,now-10),"devicePublicKey":device,"servicePublicKey":public,"now":now}));
-        assert_eq!(
-            client
-                .get(format!("{}/ad-banner", separate["url"].as_str().unwrap()))
-                .send()
-                .await
-                .unwrap()
-                .status(),
-            200
-        );
-        if separate_mode {
-            for path in ["ad-banner", "ad-script"] {
-                assert_eq!(
-                    client
-                        .get(format!("{}/{path}", media["url"].as_str().unwrap()))
-                        .send()
-                        .await
-                        .unwrap()
-                        .status(),
-                    404
-                );
-            }
-            for path in [
-                "stream/1/2",
-                "share/not-a-share",
-                "hls/not-a-video/index.m3u8",
-            ] {
-                assert_eq!(
-                    client
-                        .get(format!("{}/{path}", separate["url"].as_str().unwrap()))
-                        .send()
-                        .await
-                        .unwrap()
-                        .status(),
-                    404,
-                    "ad origin must not expose media or shares"
-                );
-            }
-        }
-        if separate_mode {
-            assert_eq!(
-                app.ok(json!({"command":"stop_ad_server"}))["sponsorPort"],
-                0,
-                "stopped selected listener must not be advertised"
-            );
-        }
-        app.stop();
-    }
-}
-
-#[tokio::test]
-async fn supporter_verification_suppresses_inflight_and_stale_ad_relay_bodies_until_signed_deadline(
-) {
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-    use ed25519_dalek::{Signer, SigningKey};
-    use sha2::{Digest, Sha256};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let fixture = Fixture::new();
-    let mut app = Backend::start(&fixture.0);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = listener.local_addr().unwrap();
-    let (requests_tx, mut requests_rx) = tokio::sync::mpsc::channel::<String>(4);
-    let (release_tx, mut release_rx) = tokio::sync::mpsc::channel::<bool>(4);
-    let provider = tokio::spawn(async move {
-        for _ in 0..3 {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let mut headers = Vec::new();
-            loop {
-                let mut byte = [0; 1];
-                socket.read_exact(&mut byte).await.unwrap();
-                headers.push(byte[0]);
-                if headers.ends_with(b"\r\n\r\n") {
-                    break;
-                }
-            }
-            requests_tx
-                .send(String::from_utf8(headers).unwrap())
-                .await
-                .unwrap();
-            let success = release_rx.recv().await.unwrap();
-            let body = if success {
-                format!("/* atOptions currentScript {} */", "fixture".repeat(200))
-            } else {
-                "outage".into()
-            };
-            let status = if success {
-                "200 OK"
-            } else {
-                "503 Service Unavailable"
-            };
-            socket.write_all(format!("HTTP/1.1 {status}\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).as_bytes()).await.unwrap();
-        }
-    });
-    let origin = app
-        .ok(json!({"command":"start_ad_server","fixtureUrl":format!("http://{address}/loader")}));
-    let url = format!("{}/ad-script", origin["url"].as_str().unwrap());
-    let referer = format!("http://localhost:{}/ad-banner", origin["port"]);
-    let spawn_request = |user_agent: Option<&str>, referer: &str| {
-        let mut request = reqwest::Client::new().get(&url).header("referer", referer);
-        if let Some(ua) = user_agent {
-            request = request.header("user-agent", ua);
-        }
-        tokio::spawn(async move { request.send().await.unwrap() })
-    };
-    let warming = spawn_request(None, &referer);
-    let headers = requests_rx.recv().await.unwrap();
-    assert!(headers.contains("Chrome/154.0.0.0"));
-    assert!(headers.contains(&format!("referer: {referer}")));
-    release_tx.send(true).await.unwrap();
-    let warmed = warming.await.unwrap();
-    assert_eq!(warmed.status(), 200);
-    assert_eq!(warmed.headers()["x-telegram-drive-ad-cache"], "network");
-    assert!(warmed.text().await.unwrap().contains("currentScript"));
-    let key = SigningKey::from_bytes(&[74; 32]);
-    let public = URL_SAFE_NO_PAD.encode(key.verifying_key().as_bytes());
-    let device = "inflight-sponsor-device";
-    let load_access = |app: &mut Backend| {
-        let now = chrono::Utc::now().timestamp();
-        let header = URL_SAFE_NO_PAD.encode(
-            serde_json::to_vec(&json!({"alg":"EdDSA","typ":"TD-SUPPORTER","kid":"v1"})).unwrap(),
-        );
-        let payload = URL_SAFE_NO_PAD.encode(
-            serde_json::to_vec(&json!(
-                {
-                    "iss":"telegram-drive-supporter",
-                    "aud":"telegram-drive-desktop",
-                    "entitlement_id":"fixture-inflight",
-                    "device_key_hash":URL_SAFE_NO_PAD.encode(Sha256::digest(device.as_bytes())),
-                    "terms_version":"2026-08-11",
-                    "issued_at":now-100,
-                    "expires_at":now-10,
-                    "offline_until":now+2
-                }
-            ))
-            .unwrap(),
-        );
-        let signed = format!("{header}.{payload}");
-        let token = format!(
-            "{signed}.{}",
-            URL_SAFE_NO_PAD.encode(key.sign(signed.as_bytes()).to_bytes())
-        );
-        app.ok(json!({"command":"sponsor_load_verified","token":token,"devicePublicKey":device,"servicePublicKey":public,"now":now}));
-    };
-    for success in [true, false] {
-        let pending = spawn_request(Some("FixtureWebView/42"), "http://localhost:1/ad-banner");
-        let headers = requests_rx.recv().await.unwrap();
-        assert!(headers.contains("user-agent: FixtureWebView/42"));
-        assert!(!headers.contains("referer:"));
-        load_access(&mut app);
-        release_tx.send(success).await.unwrap();
-        let response = pending.await.unwrap();
-        assert_eq!(response.status(), 204);
-        assert!(response.bytes().await.unwrap().is_empty());
-        app.failure(json!(
-            {
-                "command":"sponsor_load_verified",
-                "token":"unavailable-fixture",
-                "devicePublicKey":device,
-                "servicePublicKey":public,
-                "now":chrono::Utc::now().timestamp()
-            }
-        ));
-        assert_eq!(
-            reqwest::get(&url).await.unwrap().status(),
-            204,
-            "temporary verification failure retains signed grace"
-        );
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        assert_eq!(
-            reqwest::get(format!("{}/ad-banner", origin["url"].as_str().unwrap()))
-                .await
-                .unwrap()
-                .status(),
-            200,
-            "suppression expires at the signed offline deadline"
-        );
-    }
-    provider.await.unwrap();
-    app.stop();
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn share_password_http_negotiates_language_weights_aliases_and_exact_query_fields() {
     let fixture = Fixture::new();
@@ -6178,15 +5896,15 @@ fn desktop_notifications_tray_tracks_saved_and_runtime_language_without_a_transf
     app.ok(json!({"command":"save_transfer","job":job}));
     app.ok(json!({"command":"notifications_start"}));
     let tray = app.ok(json!({"command":"notification_tray"}));
-    assert_eq!(tray["status"], "Telegram Drive — En pausa: 1");
-    assert_eq!(tray["open"], "Abrir Telegram Drive");
-    assert_eq!(tray["quit"], "Salir de Telegram Drive");
+    assert_eq!(tray["status"], "Baka Drive — En pausa: 1");
+    assert_eq!(tray["open"], "Abrir Baka Drive");
+    assert_eq!(tray["quit"], "Salir de Baka Drive");
     assert_eq!(tray["resume_enabled"], true);
     assert_eq!(tray["pause_enabled"], false);
     app.ok(json!({"command":"notification_language","language":"ar"}));
     let tray = app.ok(json!({"command":"notification_tray"}));
-    assert_eq!(tray["status"], "Telegram Drive — المتوقفة مؤقتًا: 1");
-    assert_eq!(tray["quit"], "إنهاء Telegram Drive");
+    assert_eq!(tray["status"], "Baka Drive — المتوقفة مؤقتًا: 1");
+    assert_eq!(tray["quit"], "إنهاء Baka Drive");
     app.failure(json!({"command":"notification_language","language":"arabic-invalid"}));
     assert_eq!(app.ok(json!({"command":"notification_tray"})), tray);
     assert_eq!(fixture.read("settings.json"), saved);
@@ -6223,13 +5941,13 @@ fn desktop_notifications_tray_rejects_a_delayed_older_transfer_summary() {
     app.ok(json!({"command":"notification_transition","id":"newer","status":"paused"}));
     assert_eq!(
         app.ok(json!({"command":"notification_tray"}))["status"],
-        "Telegram Drive — 2 paused"
+        "Baka Drive — 2 paused"
     );
     std::fs::remove_file(fixture.path("notification-tray-hold")).unwrap();
     await_notification_fixture_file(&fixture, "notification-tray-returned");
     assert_eq!(
         app.ok(json!({"command":"notification_tray"}))["status"],
-        "Telegram Drive — 2 paused",
+        "Baka Drive — 2 paused",
         "older publication replaced the current transfer summary"
     );
     app.stop();
@@ -6419,7 +6137,7 @@ fn desktop_notifications_render_all_native_catalogs_and_preserve_malformed_or_sy
     app.ok(json!({"command":"notifications_start","systemLanguage":"zh_Hant_HK"}));
     assert_eq!(
         app.ok(json!({"command":"notification_tray"}))["quit"],
-        "結束Telegram Drive"
+        "結束Baka Drive"
     );
     assert_eq!(fixture.read("settings.json"), b"{malformed");
     let saved = br#"{"settings":{"language":"system"}}"#;
@@ -6427,7 +6145,7 @@ fn desktop_notifications_render_all_native_catalogs_and_preserve_malformed_or_sy
     app.ok(json!({"command":"notifications_start","systemLanguage":"ur_PK"}));
     assert_eq!(
         app.ok(json!({"command":"notification_tray"}))["quit"],
-        "Telegram Drive بند کریں"
+        "Baka Drive بند کریں"
     );
     assert_eq!(fixture.read("settings.json"), saved);
     app.stop();

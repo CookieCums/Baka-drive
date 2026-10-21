@@ -1,3 +1,8 @@
+#![cfg_attr(
+    any(target_os = "android", target_os = "ios"),
+    allow(dead_code, unused_mut)
+)]
+
 //! Lazy authorization of exact cache files recorded by historical applications.
 use crate::workspace::{assets, store::Store, AccountGuard};
 use crate::{models::FileMetadata, workspace::store::WorkspaceFile};

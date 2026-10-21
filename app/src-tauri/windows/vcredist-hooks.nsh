@@ -13,20 +13,20 @@
   ${If} $0 == 1
     DetailPrint "Microsoft Visual C++ runtime is already installed."
     Delete "$INSTDIR\resources\vc_redist.x64.exe"
-    Goto telegram_drive_vcredist_done
+    Goto baka_drive_vcredist_done
   ${EndIf}
 
   ${IfNot} ${FileExists} "$INSTDIR\resources\vc_redist.x64.exe"
-    MessageBox MB_ICONSTOP|MB_OK "Telegram Drive requires the Microsoft Visual C++ 2015-2022 Runtime, but the bundled installer is missing. Please reinstall Telegram Drive."
+    MessageBox MB_ICONSTOP|MB_OK "Baka Drive requires the Microsoft Visual C++ 2015-2022 Runtime, but the bundled installer is missing. Please reinstall Baka Drive."
     SetErrors
     SetErrorLevel 1
-    Goto telegram_drive_vcredist_done
+    Goto baka_drive_vcredist_done
   ${EndIf}
 
   DetailPrint "Installing Microsoft Visual C++ 2015-2022 Runtime..."
-  CopyFiles /SILENT "$INSTDIR\resources\vc_redist.x64.exe" "$TEMP\telegram-drive-vc-redist.exe"
-  ExecWait '"$TEMP\telegram-drive-vc-redist.exe" /install /quiet /norestart /log "$TEMP\telegram-drive-vc-redist.log"' $0
-  Delete "$TEMP\telegram-drive-vc-redist.exe"
+  CopyFiles /SILENT "$INSTDIR\resources\vc_redist.x64.exe" "$TEMP\baka-drive-vc-redist.exe"
+  ExecWait '"$TEMP\baka-drive-vc-redist.exe" /install /quiet /norestart /log "$TEMP\baka-drive-vc-redist.log"' $0
+  Delete "$TEMP\baka-drive-vc-redist.exe"
 
   ${If} $0 == 0
   ${OrIf} $0 == 1638
@@ -37,10 +37,10 @@
     SetRebootFlag true
     Delete "$INSTDIR\resources\vc_redist.x64.exe"
   ${Else}
-    MessageBox MB_ICONSTOP|MB_OK "Microsoft Visual C++ 2015-2022 Runtime could not be installed (error $0). Telegram Drive cannot start without it. The installer log is at $TEMP\telegram-drive-vc-redist.log."
+    MessageBox MB_ICONSTOP|MB_OK "Microsoft Visual C++ 2015-2022 Runtime could not be installed (error $0). Baka Drive cannot start without it. The installer log is at $TEMP\baka-drive-vc-redist.log."
     SetErrors
     SetErrorLevel $0
   ${EndIf}
 
-telegram_drive_vcredist_done:
+baka_drive_vcredist_done:
 !macroend

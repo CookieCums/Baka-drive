@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 declare global {
   interface Window {
-    __TELEGRAM_DRIVE_AXE_RESULTS__?: unknown;
+    __BAKA_DRIVE_AXE_RESULTS__?: unknown;
   }
 }
 
@@ -15,7 +15,7 @@ export default function AccessibilityAudit() {
   const requested = new URLSearchParams(window.location.search).has('a11y-audit');
   useEffect(() => {
     if (!requested) return;
-    window.__TELEGRAM_DRIVE_AXE_RESULTS__ = { status: 'scheduled' };
+    window.__BAKA_DRIVE_AXE_RESULTS__ = { status: 'scheduled' };
     document.documentElement.dataset.axeAuditStatus = 'scheduled';
     let timer: number | undefined;
     const runAudit = async () => {
@@ -25,7 +25,7 @@ export default function AccessibilityAudit() {
         const results = await axe.run(document, {
           resultTypes: ['violations', 'incomplete'],
         });
-        window.__TELEGRAM_DRIVE_AXE_RESULTS__ = results;
+        window.__BAKA_DRIVE_AXE_RESULTS__ = results;
         document.documentElement.dataset.axeAuditStatus = 'complete';
         document.documentElement.dataset.axeAuditViolations = String(results.violations.length);
         window.dispatchEvent(new CustomEvent('telegram-drive-axe-complete', {
@@ -37,7 +37,7 @@ export default function AccessibilityAudit() {
           console.info('[Accessibility] axe scan passed');
         }
       } catch (error) {
-        window.__TELEGRAM_DRIVE_AXE_RESULTS__ = { status: 'failed', error: String(error) };
+        window.__BAKA_DRIVE_AXE_RESULTS__ = { status: 'failed', error: String(error) };
         document.documentElement.dataset.axeAuditStatus = 'failed';
         document.documentElement.dataset.axeAuditError = String(error);
         console.error('[Accessibility] axe scan failed to run', error);

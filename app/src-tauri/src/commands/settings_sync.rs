@@ -23,7 +23,6 @@ const ARGON2_ITERATIONS: u32 = 3;
 const ARGON2_PARALLELISM: u32 = 1;
 
 const BOOLEAN_KEYS: &[&str] = &[
-    "autoUpdate",
     "zipFolders",
     "videoFilenameCaption",
     "sidebarCollapsed",
@@ -228,7 +227,7 @@ fn encrypt_settings(
 fn parse_envelope(message: &str) -> Result<EncryptedSettingsEnvelope, String> {
     let encoded = message
         .strip_prefix(MESSAGE_PREFIX)
-        .ok_or_else(|| "Not a Telegram Drive settings message".to_string())?;
+        .ok_or_else(|| "Not a Baka Drive settings message".to_string())?;
     let bytes = URL_SAFE_NO_PAD
         .decode(encoded)
         .map_err(|_| "Encrypted settings message is malformed".to_string())?;

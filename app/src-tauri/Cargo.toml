@@ -1,14 +1,14 @@
 [package]
-name = "app"
-version = "4.1.2"
+name = "baka-drive"
+version = "0.1.0"
 description = "A local-first file workspace for files stored in Telegram, built with Tauri, Rust, and React."
-authors = ["Cameron Amer"]
+authors = ["Baka Drive contributors"]
 edition = "2021"
 # Oldest compiler the release workflows build with; raise it deliberately
 # together with the `toolchain` pin in .github/workflows.
 rust-version = "1.92"
 publish = false
-default-run = "app"
+default-run = "baka-drive"
 
 
 
@@ -45,7 +45,6 @@ base64 = "0.22"
 image = { version = "0.25.10", default-features = false, features = ["bmp", "gif", "jpeg", "png", "webp"] }
 log = "0.4"
 env_logger = "0.11"
-tauri-plugin-updater = "2"
 actix-web = "4"
 actix-cors = "0.7"
 actix-files = "0.6"

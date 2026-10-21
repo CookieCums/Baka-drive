@@ -36,7 +36,7 @@ mod desktop {
         Ok(Some(Smoke {
             root,
             identifier: format!(
-                "com.cameronamer.telegramdrive.smoke.{}{token}",
+                "com.bakadrive.app.smoke.{}{token}",
                 if token.as_bytes()[0].is_ascii_digit() {
                     "r"
                 } else {

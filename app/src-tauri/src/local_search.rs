@@ -706,7 +706,7 @@ pub(crate) async fn search(
                     .parse::<i64>()
                     .is_ok_and(|id| !snapshot.folders.contains(&id))
         }) {
-            return Err("NOT_DRIVE_FOLDER: Search is limited to Telegram Drive folders".into());
+            return Err("NOT_DRIVE_FOLDER: Search is limited to Baka Drive folders".into());
         }
         if snapshot.credential != credential
             || VAULT_EPOCH.load(std::sync::atomic::Ordering::SeqCst) != vault_epoch

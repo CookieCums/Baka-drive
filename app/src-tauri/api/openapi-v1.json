@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Telegram Drive local REST API",
+    "title": "Baka Drive local REST API",
     "version": "1.0.0",
     "description": "Served by the desktop application on the loopback interface while the REST API is enabled in Settings. Every route except the health check and this document requires X-API-Key. Cold folder reads walk history once and retain the newest 50,000 files; larger folders return complete:false. Recent snapshots can be reused for 30 seconds; recently used folders catch up every 30 seconds. Verified own uploads request destination-only catch-up, and existing-ID mutations use targeted verification. External edits and deletions use a shared, bounded rotating audit (25 lookup batches per rolling minute); offline periods and FLOOD waits suspend detection. Timestamps are RFC 3339 in UTC. Routes that would expose plaintext refuse encrypted files."
   },
@@ -1276,7 +1276,7 @@
         "summary": "List folders",
         "responses": {
           "200": {
-            "description": "Every Telegram Drive folder",
+            "description": "Every Baka Drive folder",
             "content": {
               "application/json": {
                 "schema": {

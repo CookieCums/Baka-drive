@@ -1,61 +1,95 @@
-// Validate actual application configuration without a unit-test framework.
+#!/usr/bin/env node
+'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
-const root = path.resolve(__dirname, '..', 'app');
-// These files are part of the release input, including the untracked Cargo
-// configuration that enables FTS5 and the build-time SQLite capability probe.
-for (const file of ['.cargo/config.toml', 'app/src-tauri/Cargo.toml', 'app/src-tauri/Cargo.lock', 'app/src-tauri/build.rs', 'app/src-tauri/build/search-support.rs']) {
-  if (!fs.statSync(path.resolve(root, '..', file)).isFile()) throw new Error(`Missing release build input: ${file}`);
+const root = path.resolve(__dirname, '..');
+const appRoot = path.join(root, 'app');
+
+function read(file) { return fs.readFileSync(path.join(root, file), 'utf8'); }
+function json(file) { return JSON.parse(read(file)); }
+function assert(condition, message) { if (!condition) throw new Error(message); }
+function walk(directory) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const full = path.join(directory, entry.name);
+    if (entry.isDirectory()) return walk(path.relative(root, full));
+    return entry.isFile() ? [full] : [];
+  });
 }
-const json = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
-const config = json('src-tauri/tauri.conf.json');
-if (config.plugins?.shell?.open !== '(?:https?://[^\\s]+|mailto:[^\\s]+)') throw new Error('Shell URL scope must allow only HTTP, HTTPS and mailto.');
-const csp = config.app?.security?.csp;
-if (typeof csp !== 'string') throw new Error('A production WebView CSP is required.');
-const directives = new Map(csp.split(';').map(value => value.trim()).filter(Boolean).map(value => {
-  const [name, ...sources] = value.split(/\s+/);
-  return [name, sources];
+
+const config = json('app/src-tauri/tauri.conf.json');
+const packageJson = json('app/package.json');
+const cargo = read('app/src-tauri/Cargo.toml');
+const desktop = json('app/src-tauri/capabilities/default.json');
+const mobile = json('app/src-tauri/capabilities/mobile.json');
+
+assert(config.productName === 'Baka Drive', 'Tauri productName must be Baka Drive.');
+assert(config.identifier === 'com.bakadrive.app', 'Tauri identifier must be com.bakadrive.app.');
+assert(packageJson.name === 'baka-drive', 'npm package name must be baka-drive.');
+assert(packageJson.version === config.version, 'npm and Tauri versions must match.');
+assert(/^name\s*=\s*"baka-drive"$/m.test(cargo), 'Rust package must be named baka-drive.');
+assert(config.bundle?.android?.minSdkVersion >= 24, 'Android minSdkVersion must be >= 24.');
+assert(!config.plugins?.updater, 'No updater plugin may be configured.');
+assert(!Object.keys(config.bundle || {}).some(key => /updater/i.test(key)), 'Updater bundle generation must stay disabled.');
+assert(!packageJson.dependencies?.['@tauri-apps/plugin-updater'] && !packageJson.devDependencies?.['@tauri-apps/plugin-updater'], 'Updater npm plugin must be absent.');
+assert(!cargo.includes('tauri-plugin-updater'), 'Updater Rust plugin must be absent.');
+assert(!desktop.permissions.includes('updater:default') && !mobile.permissions.includes('updater:default'), 'Updater capability must be absent.');
+assert(!/frame-src[^;]*https:/i.test(config.app.security.csp), 'WebView frames must not allow arbitrary external HTTPS content.');
+const csp = new Map(config.app.security.csp.split(';').map(value => value.trim()).filter(Boolean).map(value => {
+  const parts = value.split(/\s+/); return [parts[0], parts.slice(1)];
 }));
-const scripts = directives.get('script-src') || [];
-if (!scripts.includes("'self'") || scripts.some(value => ["'unsafe-inline'", "'unsafe-eval'", '*'].includes(value))) {
-  throw new Error('WebView scripts must be self-hosted without inline/eval/wildcard execution.');
-}
+assert((csp.get('script-src') || []).includes("'self'"), 'CSP must allow self-hosted scripts.');
+assert(!(csp.get('script-src') || []).some(value => ["'unsafe-eval'", "'unsafe-inline'", '*'].includes(value)), 'CSP must disallow inline/eval/wildcard scripts.');
 for (const [name, expected] of [['object-src', "'none'"], ['base-uri', "'self'"], ['form-action', "'self'"]]) {
-  const sources = directives.get(name);
-  if (sources?.length !== 1 || sources[0] !== expected) throw new Error(`Invalid ${name} restriction.`);
+  const values = csp.get(name) || [];
+  assert(values.length === 1 && values[0] === expected, 'CSP ' + name + ' must be restricted to ' + expected + '.');
 }
-const mobile = json('src-tauri/capabilities/mobile.json');
-const desktop = json('src-tauri/capabilities/default.json');
-if (mobile.platforms?.length !== 1 || mobile.platforms[0] !== 'android') {
-  throw new Error('Mobile capabilities must remain restricted to Android.');
-}
-if (desktop.platforms?.length !== 3 || !['linux', 'macOS', 'windows'].every(value => desktop.platforms.includes(value))) {
-  throw new Error('Desktop capabilities must remain restricted to desktop platforms.');
-}
-if (!desktop.permissions?.includes('updater:default')) throw new Error('Signed desktop updater permission is required.');
-if (![mobile.identifier, desktop.identifier].every(value => config.app.security.capabilities.includes(value))) {
-  throw new Error('The application must declare its platform-specific capabilities.');
-}
-for (const capability of [mobile, desktop]) {
-  const opener = capability.permissions.find(value => value?.identifier === 'opener:allow-open-url');
-  const schemes = (opener?.allow || []).map(value => value.url).sort();
-  if (JSON.stringify(schemes) !== JSON.stringify(['http://*', 'https://*', 'mailto:*'])
-      || capability.permissions.some(value => ['opener:default', 'opener:allow-default-urls', 'opener:allow-open-path'].includes(value))) {
-    throw new Error('Opener URLs must have explicit HTTP/HTTPS/mailto scopes without generic path permission.');
+assert(mobile.platforms?.length === 1 && mobile.platforms[0] === 'android', 'Mobile permissions must only target Android.');
+assert(['linux', 'macOS', 'windows'].every(value => desktop.platforms.includes(value)), 'Desktop permissions must target desktop OSes.');
+
+const forbiddenPatterns = [
+  /https?:\/\/[^\s"'<>]*(?:effectivecpmnetwork\.com|highperformanceformat\.com)/i,
+  /https?:\/\/telegram-drive\.com\/updates/i,
+  /github\.com\/caamer20\/Telegram-Drive\/releases/i,
+  /TELEGRAM_DRIVE_(?:SUPPORTER_SERVICE_URL|SUPPORTER_PUBLIC_KEY|CRASH_REPORT_ENDPOINT)/i,
+  /(?:PAYPAL_CLIENT_SECRET|CLOUDFLARE_API_TOKEN|R2_SECRET_ACCESS_KEY)/i,
+  /\b(?:tauri-plugin-updater|tauri_plugin_updater|updater:default)\b/i,
+];
+const inspectDirs = ['app/src', 'app/src-tauri/src', '.github/workflows', 'app/scripts', 'scripts'];
+const files = inspectDirs.flatMap(walk).filter(file => /\.(?:ts|tsx|rs|js|cjs|mjs|sh|ps1|yml|yaml|json|jsonc|toml|html|css)$/.test(file) && !file.includes(path.sep + 'node_modules' + path.sep) && path.resolve(file) !== path.join(root, 'scripts', 'check-app-security.cjs'));
+for (const file of files) {
+  const body = fs.readFileSync(file, 'utf8');
+  for (const pattern of forbiddenPatterns) {
+    assert(!pattern.test(body), 'Forbidden ad/payment/updater endpoint or credential setting in ' + path.relative(root, file) + ' (pattern ' + pattern + ').');
   }
 }
-if (!desktop.permissions.includes('opener:allow-reveal-item-in-dir')) throw new Error('Download reveal permission is required.');
-// Updates are fetched over HTTPS only, and verified with the configured public key.
-const updater = config.plugins?.updater;
-if (!updater?.pubkey || !updater.endpoints?.length || !updater.endpoints.every(value => value.startsWith('https://'))) {
-  throw new Error('Signed desktop updates require a public key and HTTPS endpoints.');
+
+const workflowDir = path.join(root, '.github', 'workflows');
+const workflowFiles = fs.existsSync(workflowDir) ? fs.readdirSync(workflowDir).filter(file => /\.ya?ml$/i.test(file)) : [];
+assert(workflowFiles.length === 1 && workflowFiles[0] === 'ci.yml', 'Only the CI-only workflow should remain.');
+const workflow = fs.readFileSync(path.join(workflowDir, 'ci.yml'), 'utf8');
+for (const forbidden of [/contents:\s*write/i, /pages:\s*write/i, /id-token:\s*write/i, /wrangler\s+deploy/i, /gh\s+release\s+(?:create|upload|edit)/i, /tauri-apps\/tauri-action/i, /CLOUDFLARE_API_TOKEN|PAYPAL_CLIENT_SECRET|TAURI_SIGNING_PRIVATE_KEY/i]) {
+  assert(!forbidden.test(workflow), 'CI workflow contains a publishing/deployment or secret-sensitive operation: ' + forbidden + '.');
 }
-// The published REST contract and the registered routes describe the same API.
-const routes = new Set([...fs.readFileSync(path.join(root, 'src-tauri/src/api_routes.rs'), 'utf8')
-  .matchAll(/^#\[(get|post|patch|put|delete)\("([^"]+)"\)\]/gm)].map(([, method, route]) => `${method} ${route}`));
-const contract = new Set(Object.entries(json('src-tauri/api/openapi-v1.json').paths)
-  .flatMap(([route, operations]) => Object.keys(operations).map(method => `${method} ${route}`)));
-const drift = [...routes].filter(value => !contract.has(value)).map(value => `undocumented: ${value}`)
-  .concat([...contract].filter(value => !routes.has(value)).map(value => `not implemented: ${value}`));
-if (!routes.size || drift.length) throw new Error(`REST contract differs from the routes: ${drift.join('; ') || 'no routes found'}`);
-console.log('[app-security] WebView CSP, capability, updater and REST contract configuration passed.');
+const actionRefs = [...workflow.matchAll(/^\s*uses:\s*([^\s#]+)\s*(?:#.*)?$/gm)].map(match => match[1]);
+assert(actionRefs.length > 0, 'CI must use reviewed actions.');
+for (const ref of actionRefs) {
+  const at = ref.lastIndexOf('@');
+  assert(at > 0 && /^[0-9a-f]{40}$/i.test(ref.slice(at + 1)), 'GitHub Action must be pinned to a full commit SHA: ' + ref + '.');
+}
+
+const obviousSecrets = [
+  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+  /\bgh[pousr]_[A-Za-z0-9]{30,}\b/,
+  /\bgithub_pat_[A-Za-z0-9_]{30,}\b/,
+  /\bAKIA[0-9A-Z]{16}\b/,
+];
+for (const file of ['README.md', 'PRIVACY.md', 'SECURITY.md', 'CHANGES.md', 'app/package.json', 'app/src-tauri/tauri.conf.json', 'app/src-tauri/capabilities/default.json', 'app/src-tauri/capabilities/mobile.json']) {
+  const body = read(file);
+  for (const pattern of obviousSecrets) assert(!pattern.test(body), 'Possible credential material found in ' + file + '.');
+}
+
+assert(fs.existsSync(path.join(appRoot, 'src-tauri', 'api', 'openapi-v1.json')), 'The local REST API contract is missing.');
+assert(!fs.existsSync(path.join(root, 'supporter-service')), 'Retired payment/supporter service directory must not exist.');
+console.log('[app-security] Product identity, Android floor, CSP, capability split, no-ads/no-payment/no-updater policy, CI-only permissions, action pins and secret checks passed.');

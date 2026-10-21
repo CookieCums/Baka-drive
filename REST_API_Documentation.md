@@ -1,6 +1,6 @@
-# Telegram Drive REST API Reference
+# Baka Drive REST API Reference
 
-Telegram Drive includes an opt-in local REST API for automating file, folder, search, storage, thumbnail, media, and bulk operations. The API is available in the desktop app on Windows, macOS, and Linux. It is disabled by default, binds only to the loopback interface, and requires the desktop app to remain open and signed in.
+Baka Drive includes an opt-in local REST API for automating file, folder, search, storage, thumbnail, media, and bulk operations. The API is available in the desktop app on Windows, macOS, and Linux. It is disabled by default, binds only to the loopback interface, and requires the desktop app to remain open and signed in.
 
 ## Enable the API
 
@@ -27,7 +27,7 @@ All endpoints except `/health` and `/openapi.json` require an API key passed in 
 
 | Header | Type | Description |
 | :--- | :--- | :--- |
-| `X-API-Key` | String | Your Telegram Drive API access key |
+| `X-API-Key` | String | Your Baka Drive API access key |
 
 ### Example Request
 
@@ -79,7 +79,7 @@ Check API availability, status, and running version.
 ---
 
 ### 2. List Files
-Retrieve metadata for files stored in Telegram Drive.
+Retrieve metadata for files stored in Baka Drive.
 
 * **URL:** `/files`
 * **Method:** `GET`
@@ -175,7 +175,7 @@ Retrieve detailed metadata for a specific file.
 ---
 
 ### 4. Download File
-Stream or download a file directly from Telegram Drive.
+Stream or download a file directly from Baka Drive.
 
 * **URL:** `/files/{message_id}/download`
 * **Method:** `GET`
@@ -203,7 +203,7 @@ The response is an array of every matching file, in the same shape as **Get File
 ---
 
 ### 6. Upload File
-Upload a file to Telegram Drive.
+Upload a file to Baka Drive.
 
 * **URL:** `/files`
 * **Method:** `POST`
@@ -339,7 +339,7 @@ Retrieve total storage consumed, file counts, and breakdown by folders and MIME 
 ```
 
 #### Duplicate Files Finder
-List groups of files with identical uploaded filenames and sizes. A file renamed in Telegram Drive is still matched by the name it was uploaded with.
+List groups of files with identical uploaded filenames and sizes. A file renamed in Baka Drive is still matched by the name it was uploaded with.
 * **URL:** `/storage/duplicates`
 * **Method:** `GET`
 
@@ -410,7 +410,7 @@ Download selected files as a zip archive. The selection is checked first (missin
 
 - The API listens only on `127.0.0.1` and is intended for trusted software running on the same computer.
 - Treat the API key as a password. Any local process or user with the key can use the enabled operations.
-- Telegram Drive stores only a hash of the key and does not write the plaintext key to application logs.
+- Baka Drive stores only a hash of the key and does not write the plaintext key to application logs.
 - Encrypted files fail closed wherever plaintext would be exposed or the envelope's record could be lost: download, thumbnail, media-info, rename, move, bulk move, and bulk archive return `409`, or `503` when the encryption state cannot be determined. Delete, bulk delete, and copy are permitted because they neither decrypt the file nor separate it from its record.
 - Every request acts for the account that was signed in when it started. If the account changes before the response is ready, the request returns `409 ACCOUNT_CHANGED` and no data from either account.
 - Telegram service limits, channel permissions, proxy/VPN settings, bandwidth limits, and flood waits still apply.
