@@ -949,9 +949,6 @@ pub(crate) fn start_server_with_listener(
     let transcode_data = web::Data::new(transcode_manager);
     let crypto_data = web::Data::new(crypto_state);
     let share_root = web::Data::new(crate::share_routes::ShareAccountRoot(account_root));
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    let ad_script_cache = web::Data::new(desktop_ads::AdScriptCache::default());
-
     let local_addr = listener.local_addr()?;
     log::info!("Starting Streaming Server on {}", local_addr);
 
@@ -973,12 +970,6 @@ pub(crate) fn start_server_with_listener(
             .app_data(transcode_data.clone())
             .app_data(crypto_data.clone())
             .app_data(share_root.clone());
-
-        #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        let app = app
-            .app_data(web::Data::new(desktop_ads::AdPort(local_addr.port())))
-            .app_data(ad_script_cache.clone())
-            .configure(desktop_ads::configure);
 
         app.service(stream_media)
             .configure(crate::share_routes::configure_share_routes)
